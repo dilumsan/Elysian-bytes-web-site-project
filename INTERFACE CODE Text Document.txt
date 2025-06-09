@@ -1,0 +1,407 @@
+// Full-stack MERN Application for Loura Restaurant Digital Transformation 
+// Project Structure: 
+// /server 
+//   server.js 
+//   config/db.js 
+//   models/MenuItem.js 
+//   models/Reservation.js 
+//   models/Order.js 
+//   models/Promotion.js 
+//   models/User.js 
+//   routes/menuRoutes.js 
+//   routes/reservationRoutes.js 
+//   routes/orderRoutes.js 
+//   routes/promotionRoutes.js 
+//   routes/userRoutes.js 
+//   controllers/menuController.js 
+//   controllers/reservationController.js 
+//   controllers/orderController.js 
+//   controllers/promotionController.js 
+//   controllers/userController.js 
+// /client 
+//   src/ 
+//     index.js 
+//     App.js 
+//     services/api.js 
+//     components/ 
+//       Header.js 
+//       Footer.js 
+//       MenuList.js 
+//       ReservationForm.js 
+//       OrderForm.js 
+//       PromotionList.js 
+//       AnalyticsDashboard.js 
+//       Login.js 
+//       AdminPanel.js 
+//     pages/ 
+//       HomePage.js 
+//       MenuPage.js 
+//       ReservationPage.js 
+//       OrderPage.js 
+//       PromotionPage.js 
+//       ContactPage.js 
+//       AdminPage.js 
+ 
+/////////////////////////// 
+// server/config/db.js 
+/////////////////////////// 
+const mongoose = require('mongoose'); 
+ 
+const connectDB = async () => { 
+  try { 
+    await mongoose.connect(process.env.MONGO_URI, { 
+      useNewUrlParser: true, 
+      useUnifiedTopology: true, 
+    }); 
+    console.log('MongoDB Connected'); 
+  } catch (error) { 
+    console.error(error.message); 
+    process.exit(1); 
+  } 
+}; 
+ 
+module.exports = connectDB; 
+ 
+/////////////////////////// 
+// server/models/MenuItem.js 
+/////////////////////////// 
+const mongoose = require('mongoose'); 
+ 
+const MenuItemSchema = new mongoose.Schema({ 
+  name: { type: String, required: true }, 
+  description: String, 
+  price: { type: Number, required: true }, 
+  category: String, 
+  imageUrl: String, 
+  createdAt: { type: Date, default: Date.now } 
+}); 
+ 
+module.exports = mongoose.model('MenuItem', MenuItemSchema); 
+ 
+/////////////////////////// 
+// server/models/Reservation.js 
+/////////////////////////// 
+const ReservationSchema = new mongoose.Schema({ 
+  customerName: { type: String, required: true }, 
+  email: { type: String, required: true }, 
+  phone: String, 
+  date: { type: Date, required: true }, 
+  time: { type: String, required: true }, 
+  partySize: { type: Number, required: true }, 
+  createdAt: { type: Date, default: Date.now } 
+}); 
+ 
+module.exports = mongoose.model('Reservation', ReservationSchema); 
+ 
+/////////////////////////// 
+// server/models/Order.js 
+/////////////////////////// 
+const OrderSchema = new mongoose.Schema({ 
+  customerName: String, 
+  email: String, 
+  items: [ 
+    { 
+      menuItem: { type: mongoose.Schema.Types.ObjectId, ref: 'MenuItem' }, 
+      quantity: Number, 
+      price: Number 
+    } 
+  ], 
+  total: Number, 
+  status: { type: String, default: 'Pending' }, 
+  createdAt: { type: Date, default: Date.now } 
+}); 
+ 
+module.exports = mongoose.model('Order', OrderSchema); 
+ 
+/////////////////////////// 
+// server/models/Promotion.js 
+/////////////////////////// 
+const PromotionSchema = new mongoose.Schema({ 
+  title: { type: String, required: true }, 
+  description: String, 
+  startDate: Date, 
+  endDate: Date, 
+  imageUrl: String, 
+  createdAt: { type: Date, default: Date.now } 
+}); 
+ 
+module.exports = mongoose.model('Promotion', PromotionSchema); 
+ 
+/////////////////////////// 
+// server/models/User.js 
+/////////////////////////// 
+const UserSchema = new mongoose.Schema({ 
+  name: String, 
+  email: { type: String, unique: true }, 
+  password: String, 
+  role: { type: String, enum: ['customer', 'admin'], default: 'customer' }, 
+  createdAt: { type: Date, default: Date.now } 
+}); 
+ 
+module.exports = mongoose.model('User', UserSchema); 
+ 
+/////////////////////////// 
+// server/controllers/menuController.js 
+/////////////////////////// 
+const MenuItem = require('../models/MenuItem'); 
+ 
+exports.getMenuItems = async (req, res) => { 
+  try { 
+    const items = await MenuItem.find(); 
+    res.json(items); 
+  } catch (err) { 
+    res.status(500).json({ error: err.message }); 
+  } 
+}; 
+ 
+exports.createMenuItem = async (req, res) => { 
+  try { 
+    const newItem = new MenuItem(req.body); 
+    const saved = await newItem.save(); 
+    res.status(201).json(saved); 
+  } catch (err) { 
+    res.status(400).json({ error: err.message }); 
+  } 
+}; 
+ 
+/////////////////////////// 
+// server/controllers/reservationController.js 
+/////////////////////////// 
+const Reservation = require('../models/Reservation'); 
+ 
+exports.getReservations = async (req, res) => { 
+  try { 
+    const reservations = await Reservation.find(); 
+    res.json(reservations); 
+  } catch (err) { 
+    res.status(500).json({ error: err.message }); 
+  } 
+}; 
+ 
+exports.createReservation = async (req, res) => { 
+  try { 
+    const reservation = new Reservation(req.body); 
+    const saved = await reservation.save(); 
+    res.status(201).json(saved); 
+  } catch (err) { 
+    res.status(400).json({ error: err.message }); 
+  } 
+}; 
+ 
+/////////////////////////// 
+// server/controllers/orderController.js 
+/////////////////////////// 
+const Order = require('../models/Order'); 
+ 
+exports.getOrders = async (req, res) => { 
+  try { 
+    const orders = await Order.find().populate('items.menuItem'); 
+    res.json(orders); 
+  } catch (err) { 
+    res.status(500).json({ error: err.message }); 
+  } 
+}; 
+ 
+exports.createOrder = async (req, res) => { 
+  try { 
+    const order = new Order(req.body); 
+    order.total = order.items.reduce((sum, i) => sum + i.price * i.quantity, 0); 
+    const saved = await order.save(); 
+    res.status(201).json(saved); 
+  } catch (err) { 
+    res.status(400).json({ error: err.message }); 
+  } 
+}; 
+ 
+/////////////////////////// 
+// server/controllers/promotionController.js 
+/////////////////////////// 
+const Promotion = require('../models/Promotion'); 
+ 
+exports.getPromotions = async (req, res) => { 
+  try { 
+    const promos = await Promotion.find(); 
+    res.json(promos); 
+  } catch (err) { 
+    res.status(500).json({ error: err.message }); 
+  } 
+}; 
+ 
+exports.createPromotion = async (req, res) => { 
+  try { 
+    const promo = new Promotion(req.body); 
+    const saved = await promo.save(); 
+    res.status(201).json(saved); 
+  } catch (err) { 
+    res.status(400).json({ error: err.message }); 
+  } 
+}; 
+ 
+/////////////////////////// 
+// server/routes/menuRoutes.js 
+/////////////////////////// 
+const express = require('express'); 
+const { getMenuItems, createMenuItem } = require('../controllers/menuController'); 
+const router = express.Router(); 
+ 
+router.get('/', getMenuItems); 
+router.post('/', createMenuItem); 
+ 
+module.exports = router; 
+ 
+/////////////////////////// 
+// server/routes/reservationRoutes.js 
+/////////////////////////// 
+const express = require('express'); 
+const { getReservations, createReservation } = require('../controllers/reservationController'); 
+const router = express.Router(); 
+ 
+router.get('/', getReservations); 
+router.post('/', createReservation); 
+ 
+module.exports = router; 
+ 
+/////////////////////////// 
+// server/routes/orderRoutes.js 
+/////////////////////////// 
+const express = require('express'); 
+const { getOrders, createOrder } = require('../controllers/orderController'); 
+const router = express.Router(); 
+ 
+router.get('/', getOrders); 
+router.post('/', createOrder); 
+ 
+module.exports = router; 
+ 
+/////////////////////////// 
+// server/routes/promotionRoutes.js 
+/////////////////////////// 
+const express = require('express'); 
+const { getPromotions, createPromotion } = require('../controllers/promotionController'); 
+const router = express.Router(); 
+ 
+router.get('/', getPromotions); 
+router.post('/', createPromotion); 
+ 
+module.exports = router; 
+ 
+/////////////////////////// 
+// server/server.js 
+/////////////////////////// 
+require('dotenv').config(); 
+const express = require('express'); 
+const connectDB = require('./config/db'); 
+ 
+const app = express(); 
+app.use(express.json()); 
+ 
+// Connect Database 
+connectDB(); 
+ 
+// Define Routes 
+app.use('/api/menu', require('./routes/menuRoutes')); 
+app.use('/api/reservations', require('./routes/reservationRoutes')); 
+app.use('/api/orders', require('./routes/orderRoutes')); 
+app.use('/api/promotions', require('./routes/promotionRoutes')); 
+ 
+const PORT = process.env.PORT || 5000; 
+app.listen(PORT, () => console.log(`Server running on port ${PORT}`)); 
+ 
+/////////////////////////// 
+// client/src/services/api.js 
+/////////////////////////// 
+import axios from 'axios'; 
+ 
+const api = axios.create({ baseURL: process.env.REACT_APP_API_URL || 'http://localhost:5000/api' 
+}); 
+ 
+export const fetchMenu = () => api.get('/menu'); 
+export const createReservation = (data) => api.post('/reservations', data); 
+export const fetchReservations = () => api.get('/reservations'); 
+export const fetchPromotions = () => api.get('/promotions'); 
+export const createOrder = (data) => api.post('/orders', data); 
+export const fetchOrders = () => api.get('/orders'); 
+ 
+/////////////////////////// 
+// client/src/components/Header.js 
+/////////////////////////// 
+import React from 'react'; 
+import { Link } from 'react-router-dom'; 
+ 
+export default function Header() { 
+  return ( 
+    <header className="p-4 shadow-md flex justify-between items-center"> 
+      <h1 className="text-2xl font-bold">Loura Restaurant</h1> 
+      <nav> 
+        <Link to="/" className="mx-2">Home</Link> 
+        <Link to="/menu" className="mx-2">Menu</Link> 
+        <Link to="/reservations" className="mx-2">Reservations</Link> 
+        <Link to="/order" className="mx-2">Order Online</Link> 
+        <Link to="/promotions" className="mx-2">Promotions</Link> 
+      </nav> 
+    </header> 
+} 
+ 
+/////////////////////////// 
+// client/src/components/Footer.js 
+/////////////////////////// 
+import React from 'react'; 
+ 
+export default function Footer() { 
+  return ( 
+    <footer className="p-4 bg-gray-100 text-center"> 
+      &copy; {new Date().getFullYear()} Loura Restaurant. All Rights Reserved. 
+    </footer> 
+} 
+ 
+/////////////////////////// 
+// client/src/App.js 
+/////////////////////////// 
+import React from 'react'; 
+import { BrowserRouter as Router, Route, Switch } from 'react-router-dom'; 
+import Header from './components/Header'; 
+import Footer from './components/Footer'; 
+import HomePage from './pages/HomePage'; 
+import MenuPage from './pages/MenuPage'; 
+import ReservationPage from './pages/ReservationPage'; 
+import OrderPage from './pages/OrderPage'; 
+import PromotionPage from './pages/PromotionPage'; 
+import AdminPage from './pages/AdminPage'; 
+ 
+function App() { 
+  return ( 
+    <Router> 
+      <Header /> 
+      <main className="p-4"> 
+        <Switch> 
+          <Route path="/" component={HomePage} exact /> 
+          <Route path="/menu" component={MenuPage} /> 
+          <Route path="/reservations" component={ReservationPage} /> 
+          <Route path="/order" component={OrderPage} /> 
+          <Route path="/promotions" component={PromotionPage} /> 
+          <Route path="/admin" component={AdminPage} /> 
+        </Switch> 
+      </main> 
+      <Footer /> 
+    </Router> 
+  ); 
+} 
+ 
+export default App; 
+ 
+/////////////////////////// 
+// client/src/pages/HomePage.js 
+/////////////////////////// 
+import React from 'react'; 
+import PromotionList from '../components/PromotionList'; 
+import MenuList from '../components/MenuList'; 
+ 
+export default function HomePage() { 
+  return ( 
+    <div> 
+      <h2 className="text-xl mb-4">Welcome to Loura</h2> 
+      <PromotionList /> 
+<MenuList limit={6} /> 
+</div> 
+); 
+} 
